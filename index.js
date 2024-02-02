@@ -20,6 +20,7 @@ const taskSchema = new mongoose.Schema({
   title: String,
   description: String,
   due_date: Date,
+  status: String,
 });
 
 const Task = mongoose.model('Task', taskSchema);
@@ -70,7 +71,7 @@ app.post('/login', (req, res) => {
 
 // Route to create a new task
 app.post('/tasks', authenticateToken, async (req, res) => {
-    const { title, description, due_date } = req.body;
+    const { title, description, due_date, status } = req.body;
   
     try {
       const newTask = new Task({
@@ -78,6 +79,7 @@ app.post('/tasks', authenticateToken, async (req, res) => {
         title,
         description,
         due_date,
+        status,
       });
   
       await newTask.save();
@@ -144,6 +146,28 @@ app.get('/subtasks/:task_id', authenticateToken, async (req, res) => {
       const subTasks = await SubTask.find({ task_id });
   
       res.json({ subTasks });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  // Route to update a task
+app.put('/tasks/:task_id', authenticateToken, async (req, res) => {
+    const { task_id } = req.params;
+    const { due_date, status } = req.body;
+  
+    try {
+      const updatedTask = await Task.findOneAndUpdate(
+        { task_id },
+        { $set: { due_date, status } },
+        { new: true }
+      );
+  
+      if (!updatedTask) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+  
+      res.json({ message: 'Task updated successfully', updatedTask });
     } catch (error) {
       res.status(500).json({ error: 'Internal Server Error' });
     }
