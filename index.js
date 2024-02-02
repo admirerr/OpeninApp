@@ -24,6 +24,17 @@ const taskSchema = new mongoose.Schema({
 
 const Task = mongoose.model('Task', taskSchema);
 
+
+const subTaskSchema = new mongoose.Schema({
+    task_id: String,
+    title: String,
+    description: String,
+    due_date: Date,
+  });
+  
+const SubTask = mongoose.model('SubTask', subTaskSchema);
+  
+
 // Middleware for JWT authentication
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization;
@@ -77,23 +88,67 @@ app.post('/tasks', authenticateToken, async (req, res) => {
   });
   
 
-app.post('/subtasks/:task_id', authenticateToken, (req, res) => {
+// Route to create a new subtask with a specific task_id
+app.post('/subtasks/:task_id', authenticateToken, async (req, res) => {
     const { task_id } = req.params;
     const { title, description, due_date } = req.body;
-
-    const subTask = {
+  
+    try {
+      const newSubTask = new SubTask({
         task_id,
         title,
         description,
         due_date,
-    };
+      });
+  
+      await newSubTask.save();
+      res.status(201).json(newSubTask);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
 
-    // Save the sub-task (in a real application, save it to a database)
-    // For simplicity, we'll just push it to a tasks array
-    tasks.push(subTask);
+  
+// Route to get all user tasks with filters and pagination
+app.get('/tasks', authenticateToken, async (req, res) => {
+    const { priority, due_date, page = 1, limit = 10 } = req.query;
+  
+    try {
+      let query = {};
+  
+      if (priority) {
+        query.priority = priority; 
+      }
+  
+      if (due_date) {
+        query.due_date = { $lte: new Date(due_date) };
+      }
+  
+      const tasks = await Task.find(query)
+        .skip((page - 1) * limit)
+        .limit(limit);
+  
+      res.json({ tasks });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
 
-    res.json({ message: 'Sub-task created successfully', subTask });
-});
+
+
+  // Route to get all subtasks for a specific task
+app.get('/subtasks/:task_id', authenticateToken, async (req, res) => {
+    const { task_id } = req.params;
+  
+    try {
+      const subTasks = await SubTask.find({ task_id });
+  
+      res.json({ subTasks });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+  
 
 
 app.listen(port, () => {
