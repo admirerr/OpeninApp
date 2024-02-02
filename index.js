@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
+const uuid = require('uuid');
 require('dotenv').config();
 
 const app = express();
@@ -9,12 +10,13 @@ const port = 3000;
 
 app.use(bodyParser.json());
 
-const secretKey = process.env.MY_SECRET_KEY;
+const secretKey = 'YOUR_SECRET_KEY';
 
-mongoose.connect(process.env.MY_MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect('YOUR_MONGO_URI', { useNewUrlParser: true, useUnifiedTopology: true });
 
 // Task schema Structure
 const taskSchema = new mongoose.Schema({
+  task_id: String,
   title: String,
   description: String,
   due_date: Date,
@@ -55,27 +57,44 @@ app.post('/login', (req, res) => {
     }
 });
 
-app.post('/tasks', authenticateToken, (req, res) => {
-    const { title, description, due_date } = req.body;
-
-    // Saving the task to the tasks array
-    tasks.push({ title, description, due_date });
-
-    res.json({ message: 'Task created successfully' });
-});
-
 // Route to create a new task
 app.post('/tasks', authenticateToken, async (req, res) => {
-  const { title, description, due_date } = req.body;
+    const { title, description, due_date } = req.body;
+  
+    try {
+      const newTask = new Task({
+        task_id: uuid.v4(), // Generating a unique task_id
+        title,
+        description,
+        due_date,
+      });
+  
+      await newTask.save();
+      res.status(201).json(newTask);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+  
 
-  try {
-    const newTask = new Task({ title, description, due_date });
-    await newTask.save();
-    res.status(201).json(newTask);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+app.post('/subtasks/:task_id', authenticateToken, (req, res) => {
+    const { task_id } = req.params;
+    const { title, description, due_date } = req.body;
+
+    const subTask = {
+        task_id,
+        title,
+        description,
+        due_date,
+    };
+
+    // Save the sub-task (in a real application, save it to a database)
+    // For simplicity, we'll just push it to a tasks array
+    tasks.push(subTask);
+
+    res.json({ message: 'Sub-task created successfully', subTask });
 });
+
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
