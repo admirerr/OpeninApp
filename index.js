@@ -9,7 +9,7 @@ const port = 3000;
 
 app.use(bodyParser.json());
 
-const secretKey = process.env.MY_SECRET_KEY
+const secretKey = process.env.MY_SECRET_KEY;
 
 mongoose.connect(process.env.MY_MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
@@ -36,7 +36,7 @@ const authenticateToken = (req, res, next) => {
 
 // Creating Dummy User
 const dummyUser = {
-    username: 'john_doe',
+    username: 'Shubham',
     password: 'user_password',
 };
 
