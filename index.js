@@ -28,11 +28,12 @@ const Task = mongoose.model('Task', taskSchema);
 
 
 const subTaskSchema = new mongoose.Schema({
+    id: String,
     task_id: String,
     title: String,
     description: String,
     due_date: Date,
-    status: Boolean,
+    status: String,
   });
   
 const SubTask = mongoose.model('SubTask', subTaskSchema);
@@ -200,6 +201,51 @@ app.put('/subtasks/:_id', authenticateToken, async (req, res) => {
     }
   });
   
+
+  // Route to soft delete a task
+app.delete('/tasks/:task_id', authenticateToken, async (req, res) => {
+    const { task_id } = req.params;
+  
+    try {
+      // Soft delete by updating the status to "DELETED"
+      const updatedTask = await Task.findOneAndUpdate(
+        { task_id },
+        { $set: { status: "DELETED" } },
+        { new: true }
+      );
+  
+      if (!updatedTask) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+  
+      res.json({ message: 'Task soft deleted successfully', updatedTask });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+
+// Route to soft delete a subtask
+app.delete('/subtasks/:_id', authenticateToken, async (req, res) => {
+    const { _id } = req.params;
+  
+    try {
+      // Soft delete by updating the status to "DELETED"
+      const updatedSubtask = await SubTask.findOneAndUpdate(
+        { _id },
+        { $set: { status: "DELETED" } },
+        { new: true }
+      );
+  
+      if (!updatedSubtask) {
+        return res.status(404).json({ error: 'Subtask not found' });
+      }
+  
+      res.json({ message: 'Subtask soft deleted successfully', updatedSubtask });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
   
 
 
