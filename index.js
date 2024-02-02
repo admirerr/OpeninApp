@@ -6,6 +6,7 @@ const uuid = require('uuid');
 const { boolean } = require('webidl-conversions');
 require('dotenv').config();
 const cron = require('node-cron');
+const twilio = require('twilio');
 
 const app = express();
 const port = 3000;
@@ -17,9 +18,26 @@ const secretKey = 'YOUR_SECRET_KEY';
 mongoose.connect('YOUR_MONGO_URI', { useNewUrlParser: true, useUnifiedTopology: true });
 
 
+// Twilio configuration
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioClient = twilio(accountSid, authToken);
+
+
+//User schema Structure
+const userSchema = new mongoose.Schema({
+    user_id: String,
+    phone_number: Number,
+    priority: Number,
+});
+
+const User = mongoose.model('User', userSchema);
+
+
 // Task schema Structure
 const taskSchema = new mongoose.Schema({
   task_id: String,
+  user_id: String,
   title: String,
   description: String,
   created_at: Date,
@@ -79,15 +97,39 @@ app.post('/login', (req, res) => {
     }
 });
 
+
+//Route to create a new user
+app.post('/users', async (req, res) => {
+    const { phone_number, priority} = req.body;
+  
+    try {
+      const newUser = new User({
+        user_id: uuid.v4(),
+        phone_number,
+        priority,
+      });
+  
+      await newUser.save();
+      res.status(201).json(newUser);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+);
+
+
+
 // Route to create a new task
-app.post('/tasks', authenticateToken, async (req, res) => {
+app.post('/tasks/:user_id', authenticateToken, async (req, res) => {
     const { title, description, due_date} = req.body;
+    const {user_id} = req.params;
     // Get the current timestamp
     const currentTimestamp = new Date();
   
     try {
       const newTask = new Task({
         task_id: uuid.v4(),
+        user_id,
         title,
         description,
         due_date,
@@ -286,6 +328,28 @@ cron.schedule('0 0 * * *', async () => {
       console.error('Error updating task priorities:', error);
     }
   });
+
+
+  // Function to make a Twilio voice call
+async function makeTwilioVoiceCall(phoneNumber) {
+    try {
+      // Input your Twilio Phone Number and TwiML Bin ID
+      const fromNumber = 'YOUR_TWILIO_PHONE_NUMBER';
+      const twimlUrl = 'https://handler.twilio.com/twiml/YOUR_TWIML_BIN_ID';
+  
+      await twilioClient.calls.create({
+        to: phoneNumber,
+        from: fromNumber,
+        url: twimlUrl,
+        method: 'GET',
+      });
+  
+      console.log(`Voice call initiated to ${phoneNumber}`);
+    } catch (error) {
+      console.error('Error making Twilio voice call:', error);
+    }
+  }
+
   
 
 
