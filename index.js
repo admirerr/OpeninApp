@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const uuid = require('uuid');
 const { boolean } = require('webidl-conversions');
 require('dotenv').config();
+const cron = require('node-cron');
 
 const app = express();
 const port = 3000;
@@ -265,6 +266,65 @@ app.delete('/subtasks/:subtask_id', authenticateToken, async (req, res) => {
   
 
 
+
+  // Cron logic runs daily at midnight to update task priorities
+cron.schedule('0 0 * * *', async () => {
+    try {
+      // Get all tasks due today or earlier
+      const tasksToUpdate = await Task.find({ due_date: { $lte: new Date() }, priority: null });
+  
+      tasksToUpdate.forEach(async (task) => {
+        // Update the priority based on the due date
+        task.priority = determinePriorityBasedOnDueDate(task.due_date);
+  
+        // Save the updated task
+        await task.save();
+      });
+  
+      console.log('Task priorities updated successfully');
+    } catch (error) {
+      console.error('Error updating task priorities:', error);
+    }
+  });
+  
+
+
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
+
+
+// Function to determine priority based on due_date
+function determinePriorityBasedOnDueDate(dueDate) {
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+  
+    const dayAfterTomorrow = new Date();
+    dayAfterTomorrow.setDate(today.getDate() + 2);
+  
+    if (dueDate <= today) {
+      // Priority 0: Due date is today or earlier
+      return 0;
+    } else if (dueDate > today && dueDate <= tomorrow) {
+      // Priority 1: Due date is between tomorrow and day after tomorrow
+      return 1;
+    } else if (dueDate > tomorrow && dueDate <= dayAfterTomorrow) {
+      // Priority 2: Due date is between day after tomorrow and the day after
+      return 2;
+    } else if (dueDate > dayAfterTomorrow && dueDate <= addDays(today, 4)) {
+      // Priority 3: Due date is between 3 and 4 days from now
+      return 3;
+    } else {
+      // Priority 4: Due date is 5 days or more from now
+      return 4;
+    }
+  }
+
+  // Function to add days to a date
+function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(date.getDate() + days);
+    return result;
+  }
