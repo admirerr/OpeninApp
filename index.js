@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const uuid = require('uuid');
+const { boolean } = require('webidl-conversions');
 require('dotenv').config();
 
 const app = express();
@@ -31,6 +32,7 @@ const subTaskSchema = new mongoose.Schema({
     title: String,
     description: String,
     due_date: Date,
+    status: Boolean,
   });
   
 const SubTask = mongoose.model('SubTask', subTaskSchema);
@@ -93,7 +95,7 @@ app.post('/tasks', authenticateToken, async (req, res) => {
 // Route to create a new subtask with a specific task_id
 app.post('/subtasks/:task_id', authenticateToken, async (req, res) => {
     const { task_id } = req.params;
-    const { title, description, due_date } = req.body;
+    const { title, description, due_date, status } = req.body;
   
     try {
       const newSubTask = new SubTask({
@@ -101,6 +103,7 @@ app.post('/subtasks/:task_id', authenticateToken, async (req, res) => {
         title,
         description,
         due_date,
+        status,
       });
   
       await newSubTask.save();
@@ -172,6 +175,31 @@ app.put('/tasks/:task_id', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
     }
   });
+
+
+
+  // Route to update a subtask
+app.put('/subtasks/:_id', authenticateToken, async (req, res) => {
+    const { _id } = req.params;
+    const { status } = req.body;
+  
+    try {
+      const updatedSubtask = await SubTask.findOneAndUpdate(
+        { _id },
+        { $set: { status } },
+        { new: true }
+      );
+  
+      if (!updatedSubtask) {
+        return res.status(404).json({ error: 'Subtask not found' });
+      }
+  
+      res.json({ message: 'Subtask updated successfully', updatedSubtask });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+  
   
 
 
